@@ -18,7 +18,8 @@ from cs336_basics.bb_lm_architecture import (
     MyRoPE,
     softmax,
     scaled_dot_product_attn,
-    MultiHeadSelfAttention
+    MultiHeadSelfAttention,
+    MultiHeadSelfAttentionWithRope
 )
 
 
@@ -208,7 +209,16 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    attn = MultiHeadSelfAttentionWithRope(d_model, num_heads, max_seq_len, theta)
+    attn.load_state_dict(
+        {
+            "Wq": q_proj_weight,
+            "Wk": k_proj_weight,
+            "Wv": v_proj_weight,
+            "Wo": o_proj_weight
+        }
+    )
+    return attn(in_features, token_positions)
 
 
 def run_rope(

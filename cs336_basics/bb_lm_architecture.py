@@ -174,8 +174,7 @@ class MyRoPE(nn.Module):
         rotated1 = cos * first_pair - sin * second_pair
         rotated2 = sin * first_pair + cos * second_pair
 
-        batch_size, seq_len, _ = x.shape
-        return torch.stack([rotated1, rotated2], axis=3).reshape(batch_size, seq_len, -1)
+        return torch.stack([rotated1, rotated2], axis=len(x.shape)).reshape(x.shape[:-1]+(-1,))
         
 
 def softmax(x: torch.Tensor, dim: int):
@@ -235,6 +234,58 @@ class MultiHeadSelfAttention(nn.Module):
         Q = Q.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
         K = K.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
         V = V.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
+
+        mask = torch.ones(seq_len, seq_len)
+        mask = torch.where(torch.tril(mask)==0, False, True)
+        attn_out = scaled_dot_product_attn(Q, K, V, mask) # batch_size, num_heads, seq_len, hidden
+
+        attn_out = attn_out.transpose(1, 2).reshape(batch_size, seq_len, -1) # batch_size, seq_len, (num_heads*hidden)
+        return attn_out @ self.Wo.T
+    
+
+class MultiHeadSelfAttentionWithRope(nn.Module):
+    def __init__(self, d_model, num_heads, max_seq_len, theta):
+        super().__init__()
+
+        self.num_heads = num_heads
+        self.d_k = d_model // num_heads
+
+        self.Wq = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+        self.Wk = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+        self.Wv = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+        self.Wo = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+
+        self.rope = MyRoPE(theta, self.d_k, max_seq_len)
+    
+    def forward(self, x, token_positions):
+        batch_size, seq_len, d_model = x.size()
+
+        Q = x @ self.Wq.T
+        K = x @ self.Wk.T
+        V = x @ self.Wv.T
+
+        Q = Q.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
+        K = K.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
+        V = V.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
+
+        Q = self.rope(Q, token_positions)
+        K = self.rope(K, token_positions)
 
         mask = torch.ones(seq_len, seq_len)
         mask = torch.where(torch.tril(mask)==0, False, True)
