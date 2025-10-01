@@ -177,3 +177,9 @@ class MyRoPE(nn.Module):
         batch_size, seq_len, _ = x.shape
         return torch.stack([rotated1, rotated2], axis=3).reshape(batch_size, seq_len, -1)
         
+
+def softmax(x: torch.Tensor, dim: int):
+    dim_max = torch.max(x, dim=dim, keepdim=True).values
+    new_x = x - dim_max
+
+    return torch.exp(new_x) / torch.sum(torch.exp(new_x), dim=dim, keepdim=True)
