@@ -134,3 +134,46 @@ class MySwiGLU(nn.Module):
         w3_out = x @ self.W3.T
 
         return (silu_out * w3_out) @ self.W2.T
+    
+
+class MyRoPE(nn.Module):
+    def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
+        super().__init__()
+        
+        self.theta = theta
+        self.d_k = d_k
+        self.max_seq_len = max_seq_len
+        self.device = device
+
+        row = torch.arange(max_seq_len)
+        k = torch.arange(1, d_k//2 + 1)
+        col = theta ** ((2-2*k)/d_k)
+        
+        mat = torch.outer(row, col)
+
+        sin = torch.sin(mat)
+        cos = torch.cos(mat)
+
+        self.register_buffer("sin", sin, persistent=False)
+        self.register_buffer("cos", cos, persistent=False)
+
+    def forward(self, x: torch.Tensor, token_positions: torch.Tensor):
+        # x: batch_size, seq_len, d_k
+        # token_positions: batch, seq_len
+
+        # batch_size, seq_len, d_k//2
+        sin = self.sin[token_positions]
+        cos = self.cos[token_positions]
+
+        idx1 = [i for i in range(0, self.d_k, 2)]
+        idx2 = [i+1 for i in range(0, self.d_k, 2)]
+
+        first_pair = x[..., idx1]
+        second_pair = x[..., idx2]
+
+        rotated1 = cos * first_pair - sin * second_pair
+        rotated2 = sin * first_pair + cos * second_pair
+
+        batch_size, seq_len, _ = x.shape
+        return torch.stack([rotated1, rotated2], axis=3).reshape(batch_size, seq_len, -1)
+        
