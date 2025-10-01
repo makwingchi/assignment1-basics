@@ -183,3 +183,15 @@ def softmax(x: torch.Tensor, dim: int):
     new_x = x - dim_max
 
     return torch.exp(new_x) / torch.sum(torch.exp(new_x), dim=dim, keepdim=True)
+
+
+def scaled_dot_product_attn(q, k, v, mask=None):
+    qkT = q @ k.transpose(-1, -2)
+    d_model = q.shape[-1]
+    qkT = qkT / d_model**0.5
+
+    if mask is not None:
+        qkT = torch.where((mask==True), qkT, -torch.inf)
+    
+    score = softmax(qkT, dim=-1)
+    return score @ v       
