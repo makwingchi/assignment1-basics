@@ -17,7 +17,8 @@ from cs336_basics.bb_lm_architecture import (
     MySwiGLU, 
     MyRoPE,
     softmax,
-    scaled_dot_product_attn
+    scaled_dot_product_attn,
+    MultiHeadSelfAttention
 )
 
 
@@ -165,7 +166,9 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    self_attn = MultiHeadSelfAttention(d_model, num_heads)
+    self_attn.load_state_dict({"Wq": q_proj_weight, "Wk": k_proj_weight, "Wv": v_proj_weight, "Wo": o_proj_weight})
+    return self_attn(in_features)
 
 
 def run_multihead_self_attention_with_rope(

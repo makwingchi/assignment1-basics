@@ -194,4 +194,51 @@ def scaled_dot_product_attn(q, k, v, mask=None):
         qkT = torch.where((mask==True), qkT, -torch.inf)
     
     score = softmax(qkT, dim=-1)
-    return score @ v       
+    return score @ v
+
+
+class MultiHeadSelfAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super().__init__()
+        
+        self.num_heads = num_heads
+
+        self.Wq = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+        self.Wk = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+        self.Wv = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+        self.Wo = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(d_model, d_model)
+            )
+        )
+
+
+    def forward(self, x):
+        batch_size, seq_len, d_model = x.size()
+
+        Q = x @ self.Wq.T
+        K = x @ self.Wk.T
+        V = x @ self.Wv.T
+
+        Q = Q.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
+        K = K.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
+        V = V.reshape(batch_size, seq_len, self.num_heads, -1).transpose(1, 2)
+
+        mask = torch.ones(seq_len, seq_len)
+        mask = torch.where(torch.tril(mask)==0, False, True)
+        attn_out = scaled_dot_product_attn(Q, K, V, mask) # batch_size, num_heads, seq_len, hidden
+
+        attn_out = attn_out.transpose(1, 2).reshape(batch_size, seq_len, -1) # batch_size, seq_len, (num_heads*hidden)
+        return attn_out @ self.Wo.T
