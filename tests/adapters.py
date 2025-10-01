@@ -19,7 +19,9 @@ from cs336_basics.bb_lm_architecture import (
     softmax,
     scaled_dot_product_attn,
     MultiHeadSelfAttention,
-    MultiHeadSelfAttentionWithRope
+    MultiHeadSelfAttentionWithRope,
+    TransformerBlock,
+    TransformerLM
 )
 
 
@@ -314,7 +316,21 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    block = TransformerBlock(d_model, num_heads, d_ff, max_seq_len, theta)
+    block.load_state_dict(
+        {
+            "rmsnorm1.gain": weights["ln1.weight"],
+            "rmsnorm2.gain": weights["ln2.weight"],
+            "attn.Wq": weights["attn.q_proj.weight"],
+            "attn.Wk": weights["attn.k_proj.weight"],
+            "attn.Wv": weights["attn.v_proj.weight"],
+            "attn.Wo": weights["attn.output_proj.weight"],
+            "swiglu.W1": weights["ffn.w1.weight"],
+            "swiglu.W2": weights["ffn.w2.weight"],
+            "swiglu.W3": weights["ffn.w3.weight"]
+        }
+    )
+    return block(in_features)
 
 
 def run_transformer_lm(
@@ -396,7 +412,27 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    lm = TransformerLM(vocab_size, context_length, num_layers, d_model, num_heads, d_ff, rope_theta)
+
+    state_dict = {
+        "final_linear": weights["lm_head.weight"],
+        "embedding.embedding": weights["token_embeddings.weight"],
+        "final_rmsnorm.gain": weights["ln_final.weight"]
+    }
+
+    for i in range(num_layers):
+        state_dict[f"blocks.{i}.rmsnorm1.gain"] = weights[f"layers.{i}.ln1.weight"]
+        state_dict[f"blocks.{i}.rmsnorm2.gain"] = weights[f"layers.{i}.ln2.weight"]
+        state_dict[f"blocks.{i}.attn.Wq"] = weights[f"layers.{i}.attn.q_proj.weight"]
+        state_dict[f"blocks.{i}.attn.Wk"] = weights[f"layers.{i}.attn.k_proj.weight"]
+        state_dict[f"blocks.{i}.attn.Wv"] = weights[f"layers.{i}.attn.v_proj.weight"]
+        state_dict[f"blocks.{i}.attn.Wo"] = weights[f"layers.{i}.attn.output_proj.weight"]
+        state_dict[f"blocks.{i}.swiglu.W1"] = weights[f"layers.{i}.ffn.w1.weight"]
+        state_dict[f"blocks.{i}.swiglu.W2"] = weights[f"layers.{i}.ffn.w2.weight"]
+        state_dict[f"blocks.{i}.swiglu.W3"] = weights[f"layers.{i}.ffn.w3.weight"]
+    
+    lm.load_state_dict(state_dict)
+    return lm(in_indices)
 
 
 def run_rmsnorm(

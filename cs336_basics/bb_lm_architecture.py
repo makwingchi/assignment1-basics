@@ -293,3 +293,53 @@ class MultiHeadSelfAttentionWithRope(nn.Module):
 
         attn_out = attn_out.transpose(1, 2).reshape(batch_size, seq_len, -1) # batch_size, seq_len, (num_heads*hidden)
         return attn_out @ self.Wo.T
+    
+
+class TransformerBlock(nn.Module):
+    def __init__(self, d_model, num_heads, d_ff, max_seq_len, theta):
+        super().__init__()
+        
+        self.rmsnorm1 = MyRMSNorm(d_model)
+        self.rmsnorm2 = MyRMSNorm(d_model)
+        self.attn = MultiHeadSelfAttentionWithRope(d_model, num_heads, max_seq_len, theta)
+        self.swiglu = MySwiGLU(d_model, d_ff)
+    
+    def forward(self, x):
+        # first part
+        x_norm = self.rmsnorm1(x)
+        token_positions = torch.arange(x.shape[1]).repeat(x.shape[0], 1)
+        attn_x = self.attn(x_norm, token_positions)
+        x1 = x + attn_x
+
+        # second part
+        x1_norm = self.rmsnorm2(x1)
+        x1_ff = self.swiglu(x1_norm)
+        return x1 + x1_ff
+    
+
+class TransformerLM(nn.Module):
+    def __init__(self, vocab_size, context_length, num_layers, d_model, num_heads, d_ff, theta):
+        super().__init__()
+
+        self.num_layers = num_layers
+
+        self.embedding = MyEmbedding(vocab_size, d_model)
+        self.blocks = nn.ModuleList(
+            [TransformerBlock(d_model, num_heads, d_ff, context_length, theta) for _ in range(num_layers)]
+        )
+        self.final_rmsnorm = MyRMSNorm(d_model)
+        self.final_linear = nn.Parameter(
+            nn.init.trunc_normal_(
+                torch.empty(vocab_size, d_model)
+            )
+        )
+    
+    def forward(self, indices):
+        x = self.embedding(indices)
+
+        for i in range(self.num_layers):
+            x = self.blocks[i](x)
+        
+        x_norm = self.final_rmsnorm(x)
+        output = x_norm @ self.final_linear.T
+        return output
