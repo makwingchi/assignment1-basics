@@ -25,7 +25,8 @@ from cs336_basics.bb_lm_architecture import (
 )
 from cs336_basics.cc_lm_training import (
     cross_entropy,
-    AdamW
+    AdamW,
+    cosine_anneal_scheduling
 )
 
 
@@ -579,7 +580,7 @@ def run_get_lr_cosine_schedule(
     Returns:
         Learning rate at the given iteration under the specified schedule.
     """
-    raise NotImplementedError
+    return cosine_anneal_scheduling(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
 
 
 def run_save_checkpoint(

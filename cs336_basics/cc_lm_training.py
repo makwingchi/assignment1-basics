@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 
@@ -58,3 +60,14 @@ class AdamW(torch.optim.Optimizer):
                 state["m"] = m
                 state["v"] = v
                 state["t"] = t+1
+
+
+def cosine_anneal_scheduling(t, alpha_max, alpha_min, tw, tc):
+    if t < tw:
+        return t * alpha_max / tw
+    
+    if t > tc:
+        return alpha_min
+
+    return alpha_min + 0.5 * (1 + math.cos(math.pi * (t - tw) / (tc - tw))) * (alpha_max - alpha_min)
+
