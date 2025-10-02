@@ -25,3 +25,24 @@ def load_data(dataset, batch_size, context_length, device):
         valid.append(curr_valid)
 
     return torch.stack(train, dim=0), torch.stack(valid, dim=0)
+
+
+def save_checkpoint(model, optimizer, iteration, out):
+    model_params = model.state_dict()
+    optim_params = optimizer.state_dict()
+
+    to_save = {
+        "model_params": model_params,
+        "optim_params": optim_params,
+        "iteration": iteration
+    }
+
+    torch.save(to_save, out)
+
+
+def load_checkpoint(src, model, optimizer):
+    to_load = torch.load(src)
+    model.load_state_dict(to_load["model_params"])
+    optimizer.load_state_dict(to_load["optim_params"])
+
+    return to_load["iteration"]

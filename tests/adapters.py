@@ -30,7 +30,9 @@ from cs336_basics.cc_lm_training import (
     gradient_clipping
 )
 from cs336_basics.dd_training_loop import (
-    load_data
+    load_data,
+    save_checkpoint,
+    load_checkpoint
 )
 
 
@@ -603,7 +605,7 @@ def run_save_checkpoint(
             we've completed.
         out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    raise NotImplementedError
+    save_checkpoint(model, optimizer, iteration, out)
 
 
 def run_load_checkpoint(
@@ -624,7 +626,7 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
-    raise NotImplementedError
+    return load_checkpoint(src, model, optimizer)
 
 
 def get_tokenizer(
