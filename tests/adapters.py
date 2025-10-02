@@ -24,7 +24,8 @@ from cs336_basics.bb_lm_architecture import (
     TransformerLM
 )
 from cs336_basics.cc_lm_training import (
-    cross_entropy
+    cross_entropy,
+    AdamW
 )
 
 
@@ -550,7 +551,7 @@ def get_adamw_cls() -> Any:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(

@@ -17,3 +17,44 @@ def cross_entropy(inputs, targets):
     exp_sum = torch.log(torch.exp(new_inputs).sum(dim=-1, keepdim=True))
 
     return torch.mean(exp_sum - target_logit)
+
+
+class AdamW(torch.optim.Optimizer):
+    def __init__(self, params, lr, weight_decay, betas, eps):
+        defaults = {
+            "lr": lr,
+            "weight_decay": weight_decay,
+            "beta1": betas[0],
+            "beta2": betas[1],
+            "eps": eps
+        }
+
+        super().__init__(params, defaults=defaults)
+
+    def step(self):
+        for group in self.param_groups:
+            lr = group["lr"]
+            weight_decay = group["weight_decay"]
+            beta1 = group["beta1"]
+            beta2 = group["beta2"]
+            eps = group["eps"]
+        
+            for p in group["params"]:
+                if p.grad is None:
+                    continue
+                    
+                state = self.state[p]
+                m = state.get("m", 0)
+                v = state.get("v", 0)
+                t = state.get("t", 1)
+                grad = p.grad.data
+
+                m = beta1 * m + (1 - beta1) * grad
+                v = beta2 * v + (1 - beta2) * (grad**2)
+                alpha_t = lr * ((1 - beta2**t)**0.5) / (1 - beta1**t)
+                p.data -= alpha_t * m / (torch.sqrt(v)+eps)
+                p.data = p.data - lr * weight_decay * p.data
+
+                state["m"] = m
+                state["v"] = v
+                state["t"] = t+1
