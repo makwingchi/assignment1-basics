@@ -71,3 +71,19 @@ def cosine_anneal_scheduling(t, alpha_max, alpha_min, tw, tc):
 
     return alpha_min + 0.5 * (1 + math.cos(math.pi * (t - tw) / (tc - tw))) * (alpha_max - alpha_min)
 
+
+def gradient_clipping(parameters, max_l2_norm, eps=1e-6):
+    param_with_grad = [p for p in parameters if p.grad is not None]
+
+    if len(param_with_grad) == 0:
+        return
+
+    total_norm = 0
+    for p in param_with_grad:
+        total_norm += torch.sum(p.grad**2)
+    
+    total_norm = total_norm ** 0.5
+
+    if total_norm >= max_l2_norm:
+        for p in param_with_grad:
+            p.grad.data = p.grad.data * max_l2_norm / (total_norm + eps)

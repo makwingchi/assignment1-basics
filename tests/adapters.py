@@ -26,7 +26,8 @@ from cs336_basics.bb_lm_architecture import (
 from cs336_basics.cc_lm_training import (
     cross_entropy,
     AdamW,
-    cosine_anneal_scheduling
+    cosine_anneal_scheduling,
+    gradient_clipping
 )
 
 
@@ -545,7 +546,7 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    return gradient_clipping(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Any:
